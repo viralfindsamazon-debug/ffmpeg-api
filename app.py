@@ -7,14 +7,6 @@ import base64
 
 app = Flask(__name__)
 
-def install_ffmpeg():
-    try:
-        subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
-    except:
-        os.system('apt-get update && apt-get install -y ffmpeg')
-
-install_ffmpeg()
-
 @app.route('/merge', methods=['POST'])
 def merge():
     data = request.json
@@ -32,24 +24,35 @@ def merge():
         with open(audio_path, 'wb') as f:
             f.write(base64.b64decode(audio_base64))
         
+        ffmpeg = 'ffmpeg'
+        
         cmd = [
-            'ffmpeg', '-stream_loop', '-1',
+            ffmpeg, '-stream_loop', '-1',
             '-i', video_path,
             '-i', audio_path,
             '-shortest',
-            '-c:v', 'libx264',
+            '-c:v', 'copy',
             '-c:a', 'aac',
             '-y', output_path
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode != 0:
-            return jsonify({'error': result.stderr}), 500
+            return jsonify({'error': result.stderr, 'stdout': result.stdout}), 500
         
         with open(output_path, 'rb') as f:
             video_data = f.read()
     
     return jsonify({'video_base64': base64.b64encode(video_data).decode()})
+
+@app.route('/test')
+def test():
+    result = subprocess.run(['which', 'ffmpeg'], capture_output=True, text=True)
+    result2 = subprocess.run(['ffmpeg', '-version'], capture_output=True, text=True)
+    return jsonify({
+        'ffmpeg_path': result.stdout.strip(),
+        'ffmpeg_version': result2.stdout[:200] if result2.returncode == 0 else result2.stderr[:200]
+    })
 
 @app.route('/')
 def health():
