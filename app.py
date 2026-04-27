@@ -3,6 +3,7 @@ import subprocess
 import requests
 import os
 import tempfile
+import base64
 
 app = Flask(__name__)
 
@@ -17,26 +18,29 @@ def merge():
         audio_path = os.path.join(tmpdir, 'audio.mp3')
         output_path = os.path.join(tmpdir, 'output.mp4')
         
-        # Download files
         with open(video_path, 'wb') as f:
-            f.write(requests.get(video_url).content)
-        with open(audio_path, 'wb') as f:
-            f.write(requests.get(audio_url).content)
+            f.write(requests.get(video_url, timeout=60).content)
         
-        # Merge with FFmpeg
+        with open(audio_path, 'wb') as f:
+            f.write(requests.get(audio_url, timeout=60).content)
+        
         cmd = [
             'ffmpeg', '-stream_loop', '-1',
             '-i', video_path,
             '-i', audio_path,
-            '-shortest', '-c:v', 'libx264',
-            '-c:a', 'aac', '-y', output_path
+            '-shortest',
+            '-c:v', 'libx264',
+            '-c:a', 'aac',
+            '-y', output_path
         ]
-        subprocess.run(cmd, check=True)
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            return jsonify({'error': result.stderr}), 500
         
         with open(output_path, 'rb') as f:
             video_data = f.read()
     
-    import base64
     return jsonify({'video_base64': base64.b64encode(video_data).decode()})
 
 @app.route('/')
