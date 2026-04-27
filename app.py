@@ -7,6 +7,14 @@ import base64
 
 app = Flask(__name__)
 
+def install_ffmpeg():
+    try:
+        subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
+    except:
+        os.system('apt-get update && apt-get install -y ffmpeg')
+
+install_ffmpeg()
+
 @app.route('/merge', methods=['POST'])
 def merge():
     data = request.json
@@ -45,4 +53,7 @@ def merge():
 
 @app.route('/')
 def health():
-    re
+    return 'OK'
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
