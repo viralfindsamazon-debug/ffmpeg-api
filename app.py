@@ -11,7 +11,7 @@ app = Flask(__name__)
 def merge():
     data = request.json
     video_url = data.get('video_url')
-    audio_url = data.get('audio_url')
+    audio_base64 = data.get('audio_base64')
     
     with tempfile.TemporaryDirectory() as tmpdir:
         video_path = os.path.join(tmpdir, 'video.mp4')
@@ -22,7 +22,7 @@ def merge():
             f.write(requests.get(video_url, timeout=60).content)
         
         with open(audio_path, 'wb') as f:
-            f.write(requests.get(audio_url, timeout=60).content)
+            f.write(base64.b64decode(audio_base64))
         
         cmd = [
             'ffmpeg', '-stream_loop', '-1',
@@ -45,7 +45,4 @@ def merge():
 
 @app.route('/')
 def health():
-    return 'OK'
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    re
