@@ -7,11 +7,13 @@ import base64
 
 app = Flask(__name__)
 
+OPENAI_KEY = os.environ.get('OPENAI_KEY', '')
+
 @app.route('/merge', methods=['POST'])
 def merge():
     data = request.json
     video_url = data.get('video_url')
-    audio_base64 = data.get('audio_base64')
+    script = data.get('script')
     
     with tempfile.TemporaryDirectory() as tmpdir:
         video_path = os.path.join(tmpdir, 'video.mp4')
@@ -21,38 +23,42 @@ def merge():
         with open(video_path, 'wb') as f:
             f.write(requests.get(video_url, timeout=60).content)
         
-        with open(audio_path, 'wb') as f:
-            f.write(base64.b64decode(audio_base64))
+        tts_response = requests.post(
+            'https://api.openai.com/v1/audio/speech',
+            headers={
+                'Authorization': f'Bearer {OPENAI_KEY}',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'model': 'tts-1',
+                'input': script[:4096],
+                'voice': 'onyx',
+                'response_format': 'mp3'
+            },
+            timeout=120
+        )
         
-        ffmpeg = 'ffmpeg'
+        with open(audio_path, 'wb') as f:
+            f.write(tts_response.content)
         
         cmd = [
-            ffmpeg, '-stream_loop', '-1',
+            'ffmpeg', '-stream_loop', '-1',
             '-i', video_path,
             '-i', audio_path,
             '-shortest',
-            '-c:v', 'copy',
+            '-c:v', 'libx264',
             '-c:a', 'aac',
             '-y', output_path
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         
         if result.returncode != 0:
-            return jsonify({'error': result.stderr, 'stdout': result.stdout}), 500
+            return jsonify({'error': result.stderr}), 500
         
         with open(output_path, 'rb') as f:
             video_data = f.read()
     
     return jsonify({'video_base64': base64.b64encode(video_data).decode()})
-
-@app.route('/test')
-def test():
-    result = subprocess.run(['which', 'ffmpeg'], capture_output=True, text=True)
-    result2 = subprocess.run(['ffmpeg', '-version'], capture_output=True, text=True)
-    return jsonify({
-        'ffmpeg_path': result.stdout.strip(),
-        'ffmpeg_version': result2.stdout[:200] if result2.returncode == 0 else result2.stderr[:200]
-    })
 
 @app.route('/')
 def health():
