@@ -28,7 +28,7 @@ def merge():
         )
         with open(audio_path, 'wb') as f:
             f.write(tts_response.content)
-        cmd = ['ffmpeg', '-stream_loop', '-1', '-i', video_path, '-i', audio_path, '-shortest', '-c:v', 'libx264', '-c:a', 'aac', '-y', output_path]
+        cmd = ['ffmpeg', '-stream_loop', '-1', '-i', video_path, '-i', audio_path, '-shortest', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '35', '-c:a', 'aac', '-b:a', '64k', '-vf', 'scale=640:360', '-y', output_path]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             return jsonify({'error': result.stderr}), 500
