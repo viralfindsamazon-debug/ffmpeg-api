@@ -28,13 +28,14 @@ def merge():
         )
         with open(audio_path, 'wb') as f:
             f.write(tts_response.content)
-        cmd = ['ffmpeg', '-stream_loop', '-1', '-i', video_path, '-i', audio_path, '-shortest', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '28', '-c:a', 'aac', '-vf', 'scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2', '-y', output_path]
+        cmd = ['ffmpeg', '-stream_loop', '-1', '-i', video_path, '-i', audio_path, '-shortest', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '35', '-c:a', 'aac', '-b:a', '64k', '-vf', 'scale=480:854', '-y', output_path]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             return jsonify({'error': result.stderr}), 500
         with open(output_path, 'rb') as f:
             video_data = f.read()
-    return jsonify({'video_base64': base64.b64encode(video_data).decode()})
+    video_base64 = base64.b64encode(video_data).decode()
+    return jsonify({'video_base64': video_base64[:50000000]})
 
 @app.route('/')
 def health():
